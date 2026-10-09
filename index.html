@@ -19,21 +19,52 @@
 
     <main>
 
-        <section class="search-section">
-        
+       <section class="search-area">
 
-            <input
-                type="text"
-                id="searchInput"
-                placeholder="Nhập từ tiếng Trung, ví dụ: 学习"
-            >
+    <div class="search-mode-title">
+        Tìm kiếm theo:
+    </div>
 
-            <button id="searchButton">
-                Tra cứu
-            </button>
+    <div class="search-mode">
 
-        </section>
-        <div id="searchResults" class="search-results"></div>
+        <button
+            id="pinyinMode"
+            class="mode-button active"
+        >
+            拼 Pinyin
+        </button>
+
+        <button
+            id="vietnameseMode"
+            class="mode-button"
+        >
+            🇻🇳 Tiếng Việt
+        </button>
+
+    </div>
+
+
+    <div class="search-section">
+
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Nhập Pinyin, ví dụ: mang / máng..."
+        >
+
+        <button id="searchButton">
+            Tra cứu
+        </button>
+
+    </div>
+
+</section>
+
+
+<div
+    id="searchResults"
+    class="search-results"
+></div>
 
 
         <section class="result">

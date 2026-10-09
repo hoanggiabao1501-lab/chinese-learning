@@ -341,3 +341,61 @@ main {
 
     color: #555;
 }
+/* ========================================
+   CHẾ ĐỘ TÌM KIẾM
+======================================== */
+
+.search-area {
+    margin-bottom: 25px;
+}
+
+
+.search-mode-title {
+    font-size: 14px;
+
+    color: #666;
+
+    margin-bottom: 8px;
+}
+
+
+.search-mode {
+    display: flex;
+
+    gap: 8px;
+
+    margin-bottom: 12px;
+}
+
+
+.mode-button {
+    padding: 9px 18px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 20px;
+
+    background-color: white;
+
+    color: #555;
+
+    cursor: pointer;
+
+    font-size: 14px;
+
+    transition: 0.2s;
+}
+
+
+.mode-button:hover {
+    background-color: #f3f3f3;
+}
+
+
+.mode-button.active {
+    background-color: #c62828;
+
+    color: white;
+
+    border-color: #c62828;
+}

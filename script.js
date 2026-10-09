@@ -8,11 +8,17 @@ let hanziIndex = new Map();
 let pinyinIndex = new Map();
 let pinyinToneIndex = new Map();
 
+// Tần suất từ Jieba
+let frequencyMap = new Map();
+
 let dictionaryLoaded = false;
+
+// Chế độ tìm kiếm mặc định
+let searchMode = "pinyin";
 
 
 // =====================================================
-// 2. LẤY PHẦN TỬ HTML
+// 2. HTML ELEMENTS
 // =====================================================
 
 const searchInput =
@@ -39,9 +45,15 @@ const characterTarget =
 const searchResults =
     document.getElementById("searchResults");
 
+const pinyinModeButton =
+    document.getElementById("pinyinMode");
+
+const vietnameseModeButton =
+    document.getElementById("vietnameseMode");
+
 
 // =====================================================
-// 3. CHUẨN HÓA TEXT
+// 3. CHUẨN HÓA CHUNG
 // =====================================================
 
 function normalizeText(text) {
@@ -58,13 +70,14 @@ function normalizeText(text) {
 
 
 // =====================================================
-// 4. PINYIN CÓ DẤU
+// 4. PINYIN CÓ THANH
 // =====================================================
 
 function normalizeTonePinyin(text) {
 
     return text
         .toLowerCase()
+        .normalize("NFC")
         .replace(/\s+/g, "")
         .replace(/[-']/g, "")
         .trim();
@@ -73,36 +86,91 @@ function normalizeTonePinyin(text) {
 
 function hasToneMark(text) {
 
-    return /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/i.test(text);
+    return /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/i
+        .test(text);
 }
 
 
 // =====================================================
-// 5. KIỂM TRA CHỮ HÁN
+// 5. TIẾNG VIỆT
+// =====================================================
+
+function normalizeVietnamese(text) {
+
+    return text
+        .toLowerCase()
+        .normalize("NFC")
+        .replace(
+            /[.,;:!?()[\]{}"“”'‘’/\\|_-]/g,
+            " "
+        )
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+
+function normalizeVietnameseNoTone(text) {
+
+    return normalizeVietnamese(text)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .normalize("NFC");
+}
+
+
+function hasVietnameseTone(text) {
+
+    return /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i
+        .test(text);
+}
+
+
+function containsWholePhrase(
+    text,
+    query
+) {
+
+    return (
+        " " + text + " "
+    ).includes(
+        " " + query + " "
+    );
+}
+
+
+// =====================================================
+// 6. CHỮ HÁN
 // =====================================================
 
 function isChineseCharacter(character) {
 
-    return /[\u3400-\u9FFF]/.test(character);
+    return /[\u3400-\u9FFF]/.test(
+        character
+    );
 }
 
 
 function containsChinese(text) {
 
-    return /[\u3400-\u9FFF]/.test(text);
+    return /[\u3400-\u9FFF]/.test(
+        text
+    );
 }
 
 
 // =====================================================
-// 6. CHUYỂN PINYIN SỐ → PINYIN DẤU
-//
-// ni3 hao3 → nǐ hǎo
+// 7. PINYIN SỐ → PINYIN DẤU
 // =====================================================
 
-function convertSyllableToToneMark(syllable) {
+function convertSyllableToToneMark(
+    syllable
+) {
 
     const match =
-        syllable.match(/^([A-Za-züÜvV:]+)([1-5])$/);
+        syllable.match(
+            /^([A-Za-züÜvV:]+)([1-5])$/
+        );
 
 
     if (!match) {
@@ -110,10 +178,14 @@ function convertSyllableToToneMark(syllable) {
     }
 
 
-    let base = match[1];
+    let base =
+        match[1];
+
 
     const tone =
-        Number(match[2]);
+        Number(
+            match[2]
+        );
 
 
     base = base
@@ -128,11 +200,13 @@ function convertSyllableToToneMark(syllable) {
     }
 
 
-    const toneMarks = {
+    const marks = {
+
         1: "\u0304",
         2: "\u0301",
         3: "\u030C",
         4: "\u0300"
+
     };
 
 
@@ -140,25 +214,38 @@ function convertSyllableToToneMark(syllable) {
         base.toLowerCase();
 
 
-    let vowelIndex = -1;
+    let position =
+        -1;
 
 
-    if (lower.includes("a")) {
+    if (
+        lower.includes("a")
+    ) {
 
-        vowelIndex =
+        position =
             lower.indexOf("a");
 
-    } else if (lower.includes("e")) {
+    }
 
-        vowelIndex =
+    else if (
+        lower.includes("e")
+    ) {
+
+        position =
             lower.indexOf("e");
 
-    } else if (lower.includes("ou")) {
+    }
 
-        vowelIndex =
+    else if (
+        lower.includes("ou")
+    ) {
+
+        position =
             lower.indexOf("o");
 
-    } else {
+    }
+
+    else {
 
         const vowels =
             "aeiouü";
@@ -171,10 +258,12 @@ function convertSyllableToToneMark(syllable) {
         ) {
 
             if (
-                vowels.includes(lower[i])
+                vowels.includes(
+                    lower[i]
+                )
             ) {
 
-                vowelIndex = i;
+                position = i;
 
                 break;
             }
@@ -182,48 +271,53 @@ function convertSyllableToToneMark(syllable) {
     }
 
 
-    if (vowelIndex === -1) {
+    if (
+        position === -1
+    ) {
+
         return base;
     }
 
 
-    const markedVowel =
+    const marked =
         (
-            base[vowelIndex]
+            base[position]
             +
-            toneMarks[tone]
-        ).normalize("NFC");
+            marks[tone]
+        )
+        .normalize("NFC");
 
 
     return (
-        base.slice(0, vowelIndex)
+        base.slice(
+            0,
+            position
+        )
         +
-        markedVowel
+        marked
         +
-        base.slice(vowelIndex + 1)
+        base.slice(
+            position + 1
+        )
     );
 }
 
-
-// =====================================================
-// 7. CHUYỂN CẢ CỤM PINYIN
-// =====================================================
 
 function numberedPinyinToToneMarks(text) {
 
     return text
         .split(/\s+/)
-        .map(function(part) {
 
-            return convertSyllableToToneMark(part);
+        .map(
+            convertSyllableToToneMark
+        )
 
-        })
         .join(" ");
 }
 
 
 // =====================================================
-// 8. THÊM VÀO INDEX
+// 8. INDEX HELPER
 // =====================================================
 
 function addToIndex(
@@ -237,7 +331,9 @@ function addToIndex(
     }
 
 
-    if (!index.has(key)) {
+    if (
+        !index.has(key)
+    ) {
 
         index.set(
             key,
@@ -253,22 +349,29 @@ function addToIndex(
 
 
 // =====================================================
-// 9. ĐỌC FILE CVDICT
+// 9. ĐỌC CVDICT
 // =====================================================
 
 function parseCVDICT(text) {
 
-    const entries = [];
+    const entries =
+        [];
+
 
     const lines =
-        text.split(/\r?\n/);
+        text.split(
+            /\r?\n/
+        );
 
 
     const pattern =
         /^(\S+)\s+(\S+)\s+\[([^\]]+)\]\s+\/(.*)\/$/;
 
 
-    for (const rawLine of lines) {
+    for (
+        const rawLine
+        of lines
+    ) {
 
         const line =
             rawLine.trim();
@@ -279,12 +382,15 @@ function parseCVDICT(text) {
             ||
             line.startsWith("#")
         ) {
+
             continue;
         }
 
 
         const match =
-            line.match(pattern);
+            line.match(
+                pattern
+            );
 
 
         if (!match) {
@@ -295,8 +401,10 @@ function parseCVDICT(text) {
         const traditional =
             match[1];
 
+
         const simplified =
             match[2];
+
 
         const pinyinNumbered =
             match[3];
@@ -304,20 +412,16 @@ function parseCVDICT(text) {
 
         const meanings =
             match[4]
-                .split("/")
-                .map(
-                    item =>
-                        item.trim()
-                )
-                .filter(
-                    item =>
-                        item !== ""
-                );
 
+            .split("/")
 
-        const pinyinTone =
-            numberedPinyinToToneMarks(
-                pinyinNumbered
+            .map(
+                item =>
+                    item.trim()
+            )
+
+            .filter(
+                Boolean
             );
 
 
@@ -333,7 +437,9 @@ function parseCVDICT(text) {
                 pinyinNumbered,
 
             pinyin:
-                pinyinTone,
+                numberedPinyinToToneMarks(
+                    pinyinNumbered
+                ),
 
             meanings:
                 meanings
@@ -346,7 +452,99 @@ function parseCVDICT(text) {
 
 
 // =====================================================
-// 10. TẠO INDEX
+// 10. ĐỌC TẦN SUẤT JIEBA
+//
+// Format:
+//
+// 中国 129470 ns
+// 学习 13482 v
+// =====================================================
+
+function parseFrequencyData(text) {
+
+    frequencyMap.clear();
+
+
+    const lines =
+        text.split(
+            /\r?\n/
+        );
+
+
+    for (
+        const rawLine
+        of lines
+    ) {
+
+        const line =
+            rawLine.trim();
+
+
+        if (!line) {
+            continue;
+        }
+
+
+        const parts =
+            line.split(/\s+/);
+
+
+        if (
+            parts.length < 2
+        ) {
+
+            continue;
+        }
+
+
+        const word =
+            parts[0];
+
+
+        const freq =
+            Number(
+                parts[1]
+            );
+
+
+        if (
+            !Number.isFinite(freq)
+        ) {
+
+            continue;
+        }
+
+
+        // Nếu bị trùng
+        // giữ tần suất lớn nhất
+
+        const oldFreq =
+            frequencyMap.get(word)
+            ||
+            0;
+
+
+        if (
+            freq > oldFreq
+        ) {
+
+            frequencyMap.set(
+                word,
+                freq
+            );
+        }
+    }
+
+
+    console.log(
+        "Frequency entries:",
+        frequencyMap.size
+    );
+}
+
+
+// =====================================================
+// 11. BUILD INDEX
 // =====================================================
 
 function buildIndexes() {
@@ -377,49 +575,49 @@ function buildIndexes() {
         );
 
 
-        const plainPinyin =
-            normalizeText(
-                entry.pinyin
-            );
-
-
         addToIndex(
             pinyinIndex,
-            plainPinyin,
+            normalizeText(
+                entry.pinyin
+            ),
             entry
         );
-
-
-        const tonePinyin =
-            normalizeTonePinyin(
-                entry.pinyin
-            );
 
 
         addToIndex(
             pinyinToneIndex,
-            tonePinyin,
+            normalizeTonePinyin(
+                entry.pinyin
+            ),
             entry
         );
 
 
-        entry.normalizedMeanings =
+        entry.vietnameseMeanings =
             entry.meanings.map(
-                normalizeText
+                normalizeVietnamese
+            );
+
+
+        entry.vietnameseMeaningsNoTone =
+            entry.meanings.map(
+                normalizeVietnameseNoTone
             );
     }
 }
 
 
 // =====================================================
-// 11. TẢI TỪ ĐIỂN
+// 12. TẢI DỮ LIỆU
 // =====================================================
 
 async function loadDictionary() {
 
-    searchButton.disabled = true;
+    searchButton.disabled =
+        true;
 
-    searchInput.disabled = true;
+    searchInput.disabled =
+        true;
 
 
     searchInput.placeholder =
@@ -427,104 +625,159 @@ async function loadDictionary() {
 
 
     searchResults.innerHTML = `
+
         <div class="no-result">
-            Đang tải từ điển Trung - Việt...
+
+            Đang tải dữ liệu...
+
         </div>
+
     `;
 
 
     try {
 
-        const response =
-            await fetch(
-                "data/CVDICT.u8"
-            );
+        const [
+            dictionaryResponse,
+            frequencyResponse
+        ] =
+            await Promise.all([
+
+                fetch(
+                    "data/CVDICT.u8"
+                ),
+
+                fetch(
+                    "data/jieba_freq.txt"
+                )
+
+            ]);
 
 
-        if (!response.ok) {
+        if (
+            !dictionaryResponse.ok
+        ) {
 
             throw new Error(
-                "Không tải được file CVDICT.u8"
+                "Không tải được CVDICT.u8"
             );
         }
 
 
-        const text =
-            await response.text();
+        if (
+            !frequencyResponse.ok
+        ) {
+
+            throw new Error(
+                "Không tải được jieba_freq.txt"
+            );
+        }
+
+
+        const [
+            dictionaryText,
+            frequencyText
+        ] =
+            await Promise.all([
+
+                dictionaryResponse.text(),
+
+                frequencyResponse.text()
+
+            ]);
 
 
         dictionaryEntries =
-            parseCVDICT(text);
+            parseCVDICT(
+                dictionaryText
+            );
+
+
+        parseFrequencyData(
+            frequencyText
+        );
 
 
         buildIndexes();
 
 
-        dictionaryLoaded = true;
+        dictionaryLoaded =
+            true;
 
 
         console.log(
-            "Số mục từ:",
+            "CVDICT entries:",
             dictionaryEntries.length
         );
+
+
+        searchInput.disabled =
+            false;
+
+        searchButton.disabled =
+            false;
 
 
         searchResults.innerHTML =
             "";
 
 
-        searchButton.disabled =
-            false;
-
-        searchInput.disabled =
-            false;
+        updateSearchPlaceholder();
 
 
-        searchInput.placeholder =
-            "Nhập chữ Hán, Pinyin hoặc tiếng Việt...";
-
-
-        const firstWord =
-            hanziIndex.get("学习");
+        const defaultWord =
+            hanziIndex.get(
+                "学习"
+            );
 
 
         if (
-            firstWord
+            defaultWord
             &&
-            firstWord.length > 0
+            defaultWord.length
         ) {
 
             displayWord(
-                firstWord[0]
+                defaultWord[0]
             );
         }
 
-    } catch (error) {
+    }
 
-        console.error(error);
+    catch(error) {
+
+        console.error(
+            error
+        );
 
 
         searchResults.innerHTML = `
+
             <div class="no-result">
 
-                Không tải được từ điển.
+                Không tải được dữ liệu.
 
                 <br><br>
 
-                Kiểm tra file:
+                Kiểm tra:
 
-                <strong>
-                    data/CVDICT.u8
-                </strong>
+                <br>
+
+                data/CVDICT.u8
+
+                <br>
+
+                data/jieba_freq.txt
 
             </div>
+
         `;
     }
 }
 
 
 // =====================================================
-// 12. XÓA KẾT QUẢ TRÙNG
+// 13. LOẠI TRÙNG
 // =====================================================
 
 function removeDuplicateResults(results) {
@@ -541,16 +794,13 @@ function removeDuplicateResults(results) {
                 +
                 "|"
                 +
-                entry.pinyin
-                +
-                "|"
-                +
-                entry.meanings.join(",");
+                entry.pinyin;
 
 
             if (
                 seen.has(key)
             ) {
+
                 return false;
             }
 
@@ -564,103 +814,201 @@ function removeDuplicateResults(results) {
 
 
 // =====================================================
-// 13. TÌM TỪ
+// 14. LẤY TẦN SUẤT
 // =====================================================
 
-function findWords(input) {
+function getWordFrequency(entry) {
 
-    const trimmedInput =
-        input.trim();
+    // Ưu tiên tần suất cả từ
 
+    let frequency =
 
-    // -------------------------
-    // A. CHỮ HÁN
-    // -------------------------
+        frequencyMap.get(
+            entry.simplified
+        )
+
+        ||
+
+        frequencyMap.get(
+            entry.traditional
+        )
+
+        ||
+
+        0;
+
 
     if (
-        containsChinese(
-            trimmedInput
-        )
+        frequency > 0
     ) {
 
-        return (
-            hanziIndex.get(
-                trimmedInput
+        return frequency;
+    }
+
+
+    // Nếu từ không có trong Jieba,
+    // dùng tần suất ký tự làm fallback
+
+    let total =
+        0;
+
+
+    for (
+        const character
+        of entry.simplified
+    ) {
+
+        total +=
+
+            frequencyMap.get(
+                character
             )
             ||
-            []
-        );
+            0;
     }
 
 
-    // -------------------------
-    // B. PINYIN CÓ DẤU
-    // -------------------------
+    // Phạt mạnh fallback
+    // để từ hiếm không vượt từ có tần suất thật
 
+    return total * 0.05;
+}
+
+
+// =====================================================
+// 15. KIỂM TRA TỪ HIẾM / BIẾN THỂ
+// =====================================================
+
+function getRareWordPenalty(entry) {
+
+    const text =
+        entry.meanings
+            .join(" ")
+            .toLowerCase();
+
+
+    let penalty =
+        0;
+
+
+    // Các mục kiểu "biến thể"
     if (
-        hasToneMark(
-            trimmedInput
+        text.includes(
+            "biến thể"
         )
     ) {
 
-        const key =
-            normalizeTonePinyin(
-                trimmedInput
-            );
-
-
-        const results =
-            pinyinToneIndex.get(key);
-
-
-        if (
-            results
-            &&
-            results.length > 0
-        ) {
-
-            return removeDuplicateResults(
-                results
-            );
-        }
+        penalty +=
+            900;
     }
 
 
-    // -------------------------
-    // C. PINYIN KHÔNG DẤU
-    // -------------------------
+    // Từ cổ
+    if (
+        text.includes(
+            "cổ"
+        )
+    ) {
+
+        penalty +=
+            350;
+    }
+
+
+    // Địa phương
+    if (
+        text.includes(
+            "địa phương"
+        )
+    ) {
+
+        penalty +=
+            300;
+    }
+
+
+    // Họ người
+    if (
+        text.includes(
+            "họ "
+        )
+        ||
+        text.startsWith(
+            "họ"
+        )
+    ) {
+
+        penalty +=
+            200;
+    }
+
+
+    return penalty;
+}
+
+
+// =====================================================
+// 16. TÍNH ĐIỂM PHỔ BIẾN
+// =====================================================
+
+function getFrequencyScore(entry) {
+
+    const frequency =
+        getWordFrequency(
+            entry
+        );
+
+
+    if (
+        frequency <= 0
+    ) {
+
+        return 0;
+    }
+
+
+    // Logarithm tránh từ siêu phổ biến
+    // áp đảo tuyệt đối
+
+    return (
+        Math.log10(
+            frequency + 1
+        )
+        *
+        300
+    );
+}
+
+
+// =====================================================
+// 17. XẾP HẠNG PINYIN
+// =====================================================
+
+function rankPinyinResults(
+    input,
+    limit = 50
+) {
+
+    const inputHasTone =
+        hasToneMark(
+            input
+        );
+
 
     const plainQuery =
         normalizeText(
-            trimmedInput
+            input
         );
 
 
-    const pinyinResults =
-        pinyinIndex.get(
-            plainQuery
+    const toneQuery =
+        normalizeTonePinyin(
+            input
         );
 
 
-    if (
-        pinyinResults
-        &&
-        pinyinResults.length > 0
-    ) {
-
-        return removeDuplicateResults(
-            pinyinResults
-        );
-    }
-
-
-    // -------------------------
-    // D. TIẾNG VIỆT
-    // -------------------------
-
-    const exactResults = [];
-
-    const partialResults = [];
+    const ranked =
+        [];
 
 
     for (
@@ -668,70 +1016,430 @@ function findWords(input) {
         of dictionaryEntries
     ) {
 
-        let exactMatch = false;
+        const plainPinyin =
+            normalizeText(
+                entry.pinyin
+            );
 
-        let partialMatch = false;
+
+        const tonePinyin =
+            normalizeTonePinyin(
+                entry.pinyin
+            );
 
 
-        for (
-            const item
-            of entry.normalizedMeanings
+        let matched =
+            false;
+
+
+        let score =
+            0;
+
+
+        // =================================================
+        // NGƯỜI DÙNG NHẬP CÓ THANH
+        // =================================================
+
+        if (
+            inputHasTone
         ) {
 
+            // Khớp hoàn toàn
             if (
-                item === plainQuery
+                tonePinyin ===
+                toneQuery
             ) {
 
-                exactMatch = true;
+                matched =
+                    true;
 
-                break;
+                score +=
+                    5000;
             }
 
 
+            // Prefix
+            else if (
+                tonePinyin.startsWith(
+                    toneQuery
+                )
+            ) {
+
+                matched =
+                    true;
+
+                score +=
+                    3000;
+            }
+
+        }
+
+
+        // =================================================
+        // KHÔNG CÓ THANH
+        // =================================================
+
+        else {
+
+            // ni -> nǐ / ní / nī / nì
             if (
-                item.includes(
+                plainPinyin ===
+                plainQuery
+            ) {
+
+                matched =
+                    true;
+
+                score +=
+                    4500;
+            }
+
+
+            // ni -> nihao / nimen...
+            else if (
+                plainPinyin.startsWith(
                     plainQuery
                 )
             ) {
 
-                partialMatch = true;
+                matched =
+                    true;
+
+                score +=
+                    2500;
             }
         }
 
 
-        if (exactMatch) {
+        if (!matched) {
+            continue;
+        }
 
-            exactResults.push(
+
+        // =================================================
+        // TẦN SUẤT
+        // =================================================
+
+        score +=
+            getFrequencyScore(
                 entry
             );
 
-        } else if (partialMatch) {
 
-            partialResults.push(
+        // =================================================
+        // ƯU TIÊN TỪ NGẮN
+        //
+        // ni:
+        // 你 thường nên cao
+        // =================================================
+
+        const hanziLength =
+            [
+                ...entry.simplified
+            ].length;
+
+
+        if (
+            hanziLength === 1
+        ) {
+
+            score +=
+                180;
+
+        }
+
+        else if (
+            hanziLength === 2
+        ) {
+
+            score +=
+                80;
+        }
+
+
+        // =================================================
+        // PHẠT TỪ HIẾM
+        // =================================================
+
+        score -=
+            getRareWordPenalty(
                 entry
+            );
+
+
+        ranked.push({
+
+            entry:
+                entry,
+
+            score:
+                score
+
+        });
+    }
+
+
+    // Cao -> thấp
+
+    ranked.sort(
+        function(a, b) {
+
+            return (
+                b.score
+                -
+                a.score
             );
         }
-    }
-
-
-    if (
-        exactResults.length > 0
-    ) {
-
-        return removeDuplicateResults(
-            exactResults
-        );
-    }
+    );
 
 
     return removeDuplicateResults(
-        partialResults
+
+        ranked
+
+            .slice(
+                0,
+                limit
+            )
+
+            .map(
+                item =>
+                    item.entry
+            )
+
     );
 }
 
 
 // =====================================================
-// 14. HIỂN THỊ DANH SÁCH KẾT QUẢ
+// 18. TÌM CHỮ HÁN
+// =====================================================
+
+function searchByHanzi(input) {
+
+    return (
+        hanziIndex.get(
+            input
+        )
+        ||
+        []
+    );
+}
+
+
+// =====================================================
+// 19. TÌM PINYIN
+// =====================================================
+
+function searchByPinyin(input) {
+
+    return rankPinyinResults(
+        input,
+        50
+    );
+}
+
+
+// =====================================================
+// 20. TÌM TIẾNG VIỆT
+// =====================================================
+
+function searchByVietnamese(input) {
+
+    const userTypedTone =
+        hasVietnameseTone(
+            input
+        );
+
+
+    const query =
+        userTypedTone
+
+        ?
+
+        normalizeVietnamese(
+            input
+        )
+
+        :
+
+        normalizeVietnameseNoTone(
+            input
+        );
+
+
+    const ranked =
+        [];
+
+
+    for (
+        const entry
+        of dictionaryEntries
+    ) {
+
+        const meanings =
+
+            userTypedTone
+
+            ?
+
+            entry.vietnameseMeanings
+
+            :
+
+            entry.vietnameseMeaningsNoTone;
+
+
+        let score =
+            0;
+
+
+        for (
+            const item
+            of meanings
+        ) {
+
+            let localScore =
+                0;
+
+
+            if (
+                item ===
+                query
+            ) {
+
+                localScore =
+                    5000;
+            }
+
+
+            else if (
+                item.startsWith(
+                    query + " "
+                )
+            ) {
+
+                localScore =
+                    4000;
+            }
+
+
+            else if (
+                containsWholePhrase(
+                    item,
+                    query
+                )
+            ) {
+
+                localScore =
+                    3000;
+            }
+
+
+            if (
+                localScore >
+                score
+            ) {
+
+                score =
+                    localScore;
+            }
+        }
+
+
+        if (
+            score === 0
+        ) {
+
+            continue;
+        }
+
+
+        // Cũng dùng tần suất để
+        // từ thông dụng lên trên
+
+        score +=
+            getFrequencyScore(
+                entry
+            );
+
+
+        score -=
+            getRareWordPenalty(
+                entry
+            );
+
+
+        ranked.push({
+
+            entry:
+                entry,
+
+            score:
+                score
+
+        });
+    }
+
+
+    ranked.sort(
+        (a, b) =>
+            b.score - a.score
+    );
+
+
+    return removeDuplicateResults(
+
+        ranked.map(
+            item =>
+                item.entry
+        )
+
+    );
+}
+
+
+// =====================================================
+// 21. FIND WORDS
+// =====================================================
+
+function findWords(input) {
+
+    const value =
+        input.trim();
+
+
+    if (
+        containsChinese(
+            value
+        )
+    ) {
+
+        return searchByHanzi(
+            value
+        );
+    }
+
+
+    if (
+        searchMode ===
+        "pinyin"
+    ) {
+
+        return searchByPinyin(
+            value
+        );
+    }
+
+
+    return searchByVietnamese(
+        value
+    );
+}
+
+
+// =====================================================
+// 22. DISPLAY SEARCH RESULTS
 // =====================================================
 
 function displaySearchResults(results) {
@@ -745,15 +1453,20 @@ function displaySearchResults(results) {
     ) {
 
         searchResults.innerHTML = `
+
             <div class="no-result">
+
                 Không tìm thấy từ phù hợp.
+
             </div>
+
         `;
 
         return;
     }
 
 
+    // Nếu tra chính xác chỉ ra 1
     if (
         results.length === 1
     ) {
@@ -766,121 +1479,124 @@ function displaySearchResults(results) {
     }
 
 
-    const displayedResults =
-        results.slice(
+    results
+
+        .slice(
             0,
             50
+        )
+
+        .forEach(
+            createSearchResultItem
+        );
+}
+
+
+// =====================================================
+// 23. TẠO RESULT ITEM
+// =====================================================
+
+function createSearchResultItem(entry) {
+
+    const item =
+        document.createElement(
+            "div"
         );
 
 
-    displayedResults.forEach(
-        function(entry) {
-
-            const item =
-                document.createElement(
-                    "div"
-                );
+    item.className =
+        "search-result-item";
 
 
-            item.className =
-                "search-result-item";
+    const meaningText =
+        entry.meanings
+            .slice(
+                0,
+                3
+            )
+            .join("; ");
 
 
-            const meaningText =
-                entry.meanings
-                    .slice(0, 3)
-                    .join("; ");
+    item.innerHTML = `
+
+        <div class="result-hanzi">
+
+            ${entry.simplified}
+
+        </div>
 
 
-            item.innerHTML = `
+        <div class="result-info">
 
-                <div class="result-hanzi">
-                    ${entry.simplified}
-                </div>
+            <div class="result-pinyin">
 
-                <div class="result-info">
+                ${entry.pinyin}
 
-                    <div class="result-pinyin">
-                        ${entry.pinyin}
-                    </div>
+            </div>
 
-                    <div class="result-meaning">
-                        ${meaningText}
-                    </div>
 
-                    ${
-                        entry.traditional !==
-                        entry.simplified
+            <div class="result-meaning">
 
-                        ?
+                ${meaningText}
 
-                        `
-                        <div
-                            style="
-                                font-size: 13px;
-                                color: #888;
-                                margin-top: 4px;
-                            "
-                        >
-                            Phồn thể:
-                            ${entry.traditional}
-                        </div>
-                        `
+            </div>
 
-                        :
 
-                        ""
-                    }
+            ${
+                entry.traditional
+                !==
+                entry.simplified
+
+                ?
+
+                `
+                <div
+                    style="
+                        font-size:13px;
+                        color:#888;
+                        margin-top:4px;
+                    "
+                >
+
+                    Phồn thể:
+                    ${entry.traditional}
 
                 </div>
-            `;
+                `
+
+                :
+
+                ""
+            }
+
+        </div>
+
+    `;
 
 
-            item.addEventListener(
-                "click",
-                function() {
+    item.addEventListener(
+        "click",
+        function() {
 
-                    displayWord(
-                        entry
-                    );
-                }
-            );
+            searchInput.value =
+                entry.simplified;
 
 
-            searchResults.appendChild(
-                item
+            displayWord(
+                entry
             );
         }
     );
 
 
-    if (
-        results.length > 50
-    ) {
-
-        const more =
-            document.createElement(
-                "div"
-            );
-
-
-        more.className =
-            "no-result";
-
-
-        more.innerText =
-            `Có ${results.length} kết quả. Đang hiển thị 50 kết quả đầu tiên.`;
-
-
-        searchResults.appendChild(
-            more
-        );
-    }
+    searchResults.appendChild(
+        item
+    );
 }
 
 
 // =====================================================
-// 15. HIỂN THỊ MỘT TỪ
+// 24. DISPLAY WORD
 // =====================================================
 
 function displayWord(entry) {
@@ -894,7 +1610,9 @@ function displayWord(entry) {
 
 
     let meaningText =
-        entry.meanings.join("; ");
+        entry.meanings.join(
+            "; "
+        );
 
 
     if (
@@ -904,6 +1622,7 @@ function displayWord(entry) {
     ) {
 
         meaningText +=
+
             "\n\nPhồn thể: "
             +
             entry.traditional;
@@ -925,16 +1644,14 @@ function displayWord(entry) {
 
 
 // =====================================================
-// 16. TRA TỪ
+// 25. SEARCH BUTTON
 // =====================================================
 
 function searchWord() {
 
-    if (!dictionaryLoaded) {
-
-        alert(
-            "Từ điển vẫn đang tải."
-        );
+    if (
+        !dictionaryLoaded
+    ) {
 
         return;
     }
@@ -944,30 +1661,312 @@ function searchWord() {
         searchInput.value.trim();
 
 
-    if (
-        input === ""
-    ) {
-
-        alert(
-            "Hãy nhập chữ Hán, Pinyin hoặc tiếng Việt."
-        );
-
+    if (!input) {
         return;
     }
 
 
-    const results =
-        findWords(input);
-
-
     displaySearchResults(
-        results
+
+        findWords(
+            input
+        )
+
     );
 }
 
 
 // =====================================================
-// 17. HIỂN THỊ CHỮ HÁN
+// 26. GỢI Ý KHI GÕ
+// =====================================================
+
+let typingTimer;
+
+
+searchInput.addEventListener(
+    "input",
+    function() {
+
+        clearTimeout(
+            typingTimer
+        );
+
+
+        const input =
+            searchInput.value.trim();
+
+
+        if (!input) {
+
+            searchResults.innerHTML =
+                "";
+
+            return;
+        }
+
+
+        typingTimer =
+            setTimeout(
+                function() {
+
+                    showSuggestions(
+                        input
+                    );
+
+                },
+                250
+            );
+    }
+);
+
+
+// =====================================================
+// 27. SHOW SUGGESTIONS
+// =====================================================
+
+function showSuggestions(input) {
+
+    if (
+        !dictionaryLoaded
+    ) {
+
+        return;
+    }
+
+
+    // Chữ Hán
+    if (
+        containsChinese(
+            input
+        )
+    ) {
+
+        const results =
+            [];
+
+
+        for (
+            const entry
+            of dictionaryEntries
+        ) {
+
+            if (
+                entry.simplified
+                    .startsWith(input)
+
+                ||
+
+                entry.traditional
+                    .startsWith(input)
+            ) {
+
+                results.push(
+                    entry
+                );
+            }
+
+
+            if (
+                results.length >=
+                15
+            ) {
+
+                break;
+            }
+        }
+
+
+        displaySuggestions(
+            results
+        );
+
+
+        return;
+    }
+
+
+    // Pinyin
+    if (
+        searchMode ===
+        "pinyin"
+    ) {
+
+        displaySuggestions(
+
+            rankPinyinResults(
+                input,
+                15
+            )
+
+        );
+
+
+        return;
+    }
+
+
+    // Tiếng Việt
+    displaySuggestions(
+
+        searchByVietnamese(
+            input
+        )
+        .slice(
+            0,
+            15
+        )
+
+    );
+}
+
+
+// =====================================================
+// 28. DISPLAY SUGGESTIONS
+// =====================================================
+
+function displaySuggestions(results) {
+
+    searchResults.innerHTML =
+        "";
+
+
+    results
+
+        .slice(
+            0,
+            15
+        )
+
+        .forEach(
+            createSearchResultItem
+        );
+}
+
+
+// =====================================================
+// 29. CHUYỂN MODE
+// =====================================================
+
+function setSearchMode(mode) {
+
+    searchMode =
+        mode;
+
+
+    pinyinModeButton
+        .classList
+        .remove(
+            "active"
+        );
+
+
+    vietnameseModeButton
+        .classList
+        .remove(
+            "active"
+        );
+
+
+    if (
+        mode ===
+        "pinyin"
+    ) {
+
+        pinyinModeButton
+            .classList
+            .add(
+                "active"
+            );
+
+    }
+
+    else {
+
+        vietnameseModeButton
+            .classList
+            .add(
+                "active"
+            );
+    }
+
+
+    searchInput.value =
+        "";
+
+
+    searchResults.innerHTML =
+        "";
+
+
+    updateSearchPlaceholder();
+
+
+    searchInput.focus();
+}
+
+
+// =====================================================
+// 30. PLACEHOLDER
+// =====================================================
+
+function updateSearchPlaceholder() {
+
+    if (
+        !dictionaryLoaded
+    ) {
+
+        return;
+    }
+
+
+    if (
+        searchMode ===
+        "pinyin"
+    ) {
+
+        searchInput.placeholder =
+
+            "Nhập Pinyin, ví dụ: ni / ni hao / máng...";
+
+    }
+
+    else {
+
+        searchInput.placeholder =
+
+            "Nhập nghĩa tiếng Việt, ví dụ: bận...";
+    }
+}
+
+
+// =====================================================
+// 31. MODE BUTTONS
+// =====================================================
+
+pinyinModeButton.addEventListener(
+    "click",
+    function() {
+
+        setSearchMode(
+            "pinyin"
+        );
+    }
+);
+
+
+vietnameseModeButton.addEventListener(
+    "click",
+    function() {
+
+        setSearchMode(
+            "vietnamese"
+        );
+    }
+);
+
+
+// =====================================================
+// 32. HANZI WRITER
 // =====================================================
 
 function renderCharacters(word) {
@@ -977,9 +1976,10 @@ function renderCharacters(word) {
 
 
     const characters =
-        [...word].filter(
-            isChineseCharacter
-        );
+        [...word]
+            .filter(
+                isChineseCharacter
+            );
 
 
     characters.forEach(
@@ -996,10 +1996,6 @@ function renderCharacters(word) {
     );
 }
 
-
-// =====================================================
-// 18. TẠO HANZI WRITER
-// =====================================================
 
 function createCharacterCard(
     character,
@@ -1027,36 +2023,49 @@ function createCharacterCard(
     card.innerHTML = `
 
         <div class="character-title">
+
             ${character}
+
         </div>
+
 
         <div
             id="${writerID}"
             class="writer-box">
         </div>
 
+
         <div
             id="${counterID}"
-            class="stroke-counter"
-        >
+            class="stroke-counter">
+
             Đang tải dữ liệu nét...
+
         </div>
+
 
         <div class="writer-buttons">
 
             <button class="animate-all">
+
                 ▶ Xem toàn bộ
+
             </button>
 
             <button class="next-stroke">
+
                 → Nét tiếp theo
+
             </button>
 
             <button class="restart-stroke">
+
                 ↻ Bắt đầu lại
+
             </button>
 
         </div>
+
     `;
 
 
@@ -1065,37 +2074,45 @@ function createCharacterCard(
     );
 
 
-   const writer =
-    HanziWriter.create(
-        writerID,
-        character,
-        {
-            width: 320,
-            height: 320,
+    const writer =
+        HanziWriter.create(
+            writerID,
+            character,
+            {
 
-            padding: 20,
+                width:
+                    320,
 
-            // Không hiện nét xám phía sau
-            showOutline: false,
+                height:
+                    320,
 
-            // Ban đầu không hiện sẵn chữ hoàn chỉnh
-            showCharacter: false,
+                padding:
+                    20,
 
-            // Tốc độ viết
-            strokeAnimationSpeed: 0.8,
+                showOutline:
+                    false,
 
-            // Khoảng nghỉ giữa các nét
-            delayBetweenStrokes: 800,
+                showCharacter:
+                    false,
 
-            // Nét đã viết giữ nguyên, không mờ đi
-            strokeFadeDuration: 0
-        }
-    );
+                strokeAnimationSpeed:
+                    0.8,
+
+                delayBetweenStrokes:
+                    800,
+
+                strokeFadeDuration:
+                    0
+            }
+        );
 
 
-    let currentStroke = 0;
+    let currentStroke =
+        0;
 
-    let totalStrokes = 0;
+
+    let totalStrokes =
+        0;
 
 
     HanziWriter
@@ -1104,10 +2121,10 @@ function createCharacterCard(
         )
 
         .then(
-            function(characterData) {
+            function(data) {
 
                 totalStrokes =
-                    characterData
+                    data
                         .strokes
                         .length;
 
@@ -1119,13 +2136,12 @@ function createCharacterCard(
 
     function updateCounter() {
 
-        const counter =
-            document.getElementById(
+        document
+            .getElementById(
                 counterID
-            );
+            )
+            .innerText =
 
-
-        counter.innerText =
             `Nét ${currentStroke} / ${totalStrokes}`;
     }
 
@@ -1134,24 +2150,30 @@ function createCharacterCard(
         .querySelector(
             ".animate-all"
         )
+
         .addEventListener(
             "click",
             function() {
 
-                currentStroke = 0;
+                currentStroke =
+                    0;
+
 
                 writer
                     .animateCharacter({
 
-                        onComplete:
-                            function() {
+                        onComplete() {
 
-                                currentStroke =
-                                    totalStrokes;
+                            currentStroke =
+                                totalStrokes;
 
-                                updateCounter();
-                            }
+
+                            updateCounter();
+                        }
                     });
+
+
+                updateCounter();
             }
         );
 
@@ -1160,25 +2182,46 @@ function createCharacterCard(
         .querySelector(
             ".next-stroke"
         )
+
         .addEventListener(
             "click",
             function() {
+
+                if (
+                    totalStrokes ===
+                    0
+                ) {
+
+                    return;
+                }
+
 
                 if (
                     currentStroke >=
                     totalStrokes
                 ) {
 
-                    currentStroke = 0;
+                    currentStroke =
+                        0;
+
+
+                    writer
+                        .hideCharacter({
+
+                            duration:
+                                0
+                        });
                 }
 
 
-                writer.animateStroke(
-                    currentStroke
-                );
+                writer
+                    .animateStroke(
+                        currentStroke
+                    );
 
 
                 currentStroke++;
+
 
                 updateCounter();
             }
@@ -1189,18 +2232,21 @@ function createCharacterCard(
         .querySelector(
             ".restart-stroke"
         )
+
         .addEventListener(
             "click",
             function() {
 
-                currentStroke = 0;
+                currentStroke =
+                    0;
 
 
-                writer.hideCharacter({
+                writer
+                    .hideCharacter({
 
-                    duration: 0
-
-                });
+                        duration:
+                            0
+                    });
 
 
                 updateCounter();
@@ -1210,266 +2256,14 @@ function createCharacterCard(
 
 
 // =====================================================
-// 19. NÚT TRA
+// 33. SEARCH EVENTS
 // =====================================================
 
 searchButton.addEventListener(
     "click",
     searchWord
 );
-// =====================================================
-// GỢI Ý TÌM KIẾM
-// =====================================================
 
-function showSuggestions(input) {
-
-    if (!dictionaryLoaded) {
-        return;
-    }
-
-
-    const results = [];
-
-    const query =
-        normalizeText(input);
-
-
-    if (
-        query.length === 0
-    ) {
-        return;
-    }
-
-
-    // =================================================
-    // 1. Nếu đang nhập chữ Hán
-    // =================================================
-
-    if (
-        containsChinese(input)
-    ) {
-
-        for (
-            const entry
-            of dictionaryEntries
-        ) {
-
-            if (
-                entry.simplified
-                    .startsWith(input)
-
-                ||
-
-                entry.traditional
-                    .startsWith(input)
-            ) {
-
-                results.push(
-                    entry
-                );
-
-            }
-
-
-            // Chỉ lấy tối đa 12 gợi ý
-            if (
-                results.length >= 12
-            ) {
-
-                break;
-
-            }
-
-        }
-
-    }
-
-
-    // =================================================
-    // 2. Nếu nhập Pinyin hoặc tiếng Việt
-    // =================================================
-
-    else {
-
-        for (
-            const entry
-            of dictionaryEntries
-        ) {
-
-            // -------------------------
-            // PINYIN
-            // -------------------------
-
-            const entryPinyin =
-                normalizeText(
-                    entry.pinyin
-                );
-
-
-            if (
-                entryPinyin
-                    .startsWith(query)
-            ) {
-
-                results.push(
-                    entry
-                );
-
-            }
-
-            else {
-
-                // -------------------------
-                // TIẾNG VIỆT
-                // -------------------------
-
-                for (
-                    const meaningItem
-                    of entry.normalizedMeanings
-                ) {
-
-                    if (
-                        meaningItem
-                            .startsWith(query)
-                    ) {
-
-                        results.push(
-                            entry
-                        );
-
-                        break;
-
-                    }
-
-                }
-
-            }
-
-
-            if (
-                results.length >= 12
-            ) {
-
-                break;
-
-            }
-
-        }
-
-    }
-
-
-    const cleanedResults =
-        removeDuplicateResults(
-            results
-        );
-
-
-    displaySuggestions(
-        cleanedResults
-    );
-
-}
-// =====================================================
-// HIỂN THỊ GỢI Ý
-// =====================================================
-
-function displaySuggestions(results) {
-
-    searchResults.innerHTML =
-        "";
-
-
-    // Không hiện thông báo nếu chưa có gợi ý
-    if (
-        results.length === 0
-    ) {
-
-        return;
-
-    }
-
-
-    results.forEach(
-        function(entry) {
-
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-
-            item.className =
-                "search-result-item";
-
-
-            const shortMeaning =
-                entry.meanings
-                    .slice(0, 2)
-                    .join("; ");
-
-
-            item.innerHTML = `
-
-                <div class="result-hanzi">
-
-                    ${entry.simplified}
-
-                </div>
-
-
-                <div class="result-info">
-
-                    <div class="result-pinyin">
-
-                        ${entry.pinyin}
-
-                    </div>
-
-
-                    <div class="result-meaning">
-
-                        ${shortMeaning}
-
-                    </div>
-
-                </div>
-
-            `;
-
-
-            item.addEventListener(
-                "click",
-                function() {
-
-                    // Điền chữ đã chọn vào ô tìm kiếm
-                    searchInput.value =
-                        entry.simplified;
-
-
-                    // Hiển thị từ
-                    displayWord(
-                        entry
-                    );
-
-                }
-            );
-
-
-            searchResults
-                .appendChild(
-                    item
-                );
-
-        }
-    );
-
-}
-
-
-// =====================================================
-// 20. ENTER ĐỂ TRA
-// =====================================================
 
 searchInput.addEventListener(
     "keydown",
@@ -1484,58 +2278,10 @@ searchInput.addEventListener(
         }
     }
 );
-// =====================================================
-// GỢI Ý KHI ĐANG GÕ
-// =====================================================
-
-let typingTimer;
-
-
-searchInput.addEventListener(
-    "input",
-    function() {
-
-        // Xóa bộ đếm cũ
-        clearTimeout(
-            typingTimer
-        );
-
-
-        const input =
-            searchInput.value.trim();
-
-
-        // Nếu ô trống
-        if (
-            input === ""
-        ) {
-
-            searchResults.innerHTML =
-                "";
-
-            return;
-        }
-
-
-        // Chờ người dùng ngừng gõ 300ms
-        typingTimer =
-            setTimeout(
-                function() {
-
-                    showSuggestions(
-                        input
-                    );
-
-                },
-                300
-            );
-
-    }
-);
 
 
 // =====================================================
-// 21. PHÁT ÂM
+// 34. PHÁT ÂM
 // =====================================================
 
 speakButton.addEventListener(
@@ -1544,6 +2290,11 @@ speakButton.addEventListener(
 
         const text =
             hanzi.innerText.trim();
+
+
+        if (!text) {
+            return;
+        }
 
 
         const speech =
@@ -1575,7 +2326,7 @@ speakButton.addEventListener(
 
 
 // =====================================================
-// 22. KHỞI ĐỘNG
+// 35. START
 // =====================================================
 
 loadDictionary();
