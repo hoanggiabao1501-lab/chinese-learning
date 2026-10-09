@@ -1,0 +1,343 @@
+* {
+    box-sizing: border-box;
+}
+
+
+body {
+    margin: 0;
+
+    font-family: Arial, sans-serif;
+
+    background-color: #f5f6fa;
+
+    color: #222;
+}
+
+
+header {
+    background-color: #c62828;
+
+    color: white;
+
+    text-align: center;
+
+    padding: 25px;
+}
+
+
+header h1 {
+    margin: 0;
+
+    font-size: 38px;
+}
+
+
+header p {
+    margin-top: 8px;
+}
+
+
+main {
+    width: 90%;
+
+    max-width: 800px;
+
+    margin: 40px auto;
+}
+
+
+.search-section {
+    display: flex;
+
+    gap: 10px;
+
+    margin-bottom: 30px;
+}
+
+
+.search-section input {
+    flex: 1;
+
+    padding: 15px;
+
+    font-size: 18px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 8px;
+}
+
+
+.search-section button {
+    padding: 15px 25px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background-color: #c62828;
+
+    color: white;
+
+    font-size: 16px;
+
+    cursor: pointer;
+}
+
+
+.result {
+    background-color: white;
+
+    padding: 30px;
+
+    border-radius: 15px;
+
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+
+    text-align: center;
+}
+
+
+#hanzi {
+    font-size: 65px;
+
+    margin: 5px;
+}
+
+
+#pinyin {
+    font-size: 24px;
+
+    color: #666;
+}
+
+
+#speakButton {
+    padding: 12px 20px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background-color: #1976d2;
+
+    color: white;
+
+    font-size: 16px;
+
+    cursor: pointer;
+
+    margin-bottom: 20px;
+}
+
+
+.meaning-box,
+.writing-box {
+    margin-top: 20px;
+
+    padding: 20px;
+
+    border-top: 1px solid #ddd;
+
+    text-align: left;
+}
+
+
+.meaning-box h3,
+.writing-box h3 {
+    color: #c62828;
+}
+
+
+#characterTarget {
+    background-color: #f5f5f5;
+
+    padding: 30px;
+
+    text-align: center;
+
+    border-radius: 10px;
+}
+/* =========================
+   KHU VỰC VIẾT CHỮ HÁN
+========================= */
+
+#characterTarget {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 25px;
+
+    background-color: transparent;
+    padding: 20px 0;
+}
+
+
+.character-card {
+    width: 360px;
+
+    background-color: #fafafa;
+
+    border: 1px solid #ddd;
+
+    border-radius: 12px;
+
+    padding: 20px;
+
+    text-align: center;
+}
+
+
+.character-title {
+    font-size: 30px;
+
+    margin-bottom: 10px;
+}
+
+
+.writer-box {
+    width: 320px;
+    height: 320px;
+
+    margin: auto;
+
+    border: 2px solid #ddd;
+
+    background-color: white;
+}
+
+
+.stroke-counter {
+    margin-top: 10px;
+
+    color: #666;
+
+    font-size: 14px;
+}
+
+
+.writer-buttons {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+    margin-top: 12px;
+}
+
+
+.writer-buttons button {
+    padding: 9px;
+
+    border: none;
+
+    border-radius: 6px;
+
+    cursor: pointer;
+
+    background-color: #c62828;
+
+    color: white;
+}
+
+
+.writer-buttons button:hover {
+    background-color: #a91f1f;
+}
+/* ==================================
+   DANH SÁCH KẾT QUẢ TÌM KIẾM
+================================== */
+
+.search-results {
+    margin-top: -20px;
+    margin-bottom: 25px;
+
+    background: white;
+
+    border-radius: 10px;
+
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+
+    overflow: hidden;
+}
+
+
+.search-result-item {
+    display: flex;
+
+    align-items: center;
+
+    gap: 20px;
+
+    padding: 15px 20px;
+
+    border-bottom: 1px solid #eee;
+
+    cursor: pointer;
+}
+
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+
+.search-result-item:hover {
+    background-color: #f5f5f5;
+}
+
+
+.result-hanzi {
+    font-size: 32px;
+
+    width: 80px;
+
+    color: #c62828;
+}
+
+
+.result-info {
+    flex: 1;
+}
+
+
+.result-pinyin {
+    font-size: 17px;
+
+    color: #1976d2;
+
+    margin-bottom: 4px;
+}
+
+
+.result-meaning {
+    color: #555;
+
+    font-size: 15px;
+}
+
+
+.no-result {
+    padding: 20px;
+
+    text-align: center;
+
+    color: #777;
+}
+.writer-buttons button {
+    font-size: 16px;
+
+    padding: 12px 16px;
+
+    min-height: 45px;
+}
+.stroke-counter {
+    margin-top: 12px;
+
+    font-size: 18px;
+
+    font-weight: bold;
+
+    color: #555;
+}

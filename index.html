@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Học tiếng Trung</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>中文学习</h1>
+        <p>Từ điển học tiếng Trung của Bống</p>
+    </header>
+
+
+    <main>
+
+        <section class="search-section">
+        
+
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Nhập từ tiếng Trung, ví dụ: 学习"
+            >
+
+            <button id="searchButton">
+                Tra cứu
+            </button>
+
+        </section>
+        <div id="searchResults" class="search-results"></div>
+
+
+        <section class="result">
+
+            <h2 id="hanzi">
+                学习
+            </h2>
+
+            <p id="pinyin">
+                xuéxí
+            </p>
+
+            <button id="speakButton">
+                🔊 Nghe phát âm
+            </button>
+
+
+            <div class="meaning-box">
+
+                <h3>Nghĩa</h3>
+
+                <p id="meaning">
+                    Học tập
+                </p>
+
+            </div>
+
+
+            <div class="writing-box">
+
+                <h3>Cách viết</h3>
+
+                <div id="characterTarget"></div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- Thư viện viết chữ Hán -->
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+
+<!-- JavaScript của chúng ta -->
+<script src="script.js"></script>
+
+</body>
+</html>
